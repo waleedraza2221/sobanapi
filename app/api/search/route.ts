@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { bdclient } from "@brightdata/sdk";
-import { ScrapeJob } from "@brightdata/sdk/scrapers";
+
+const BRIGHTDATA_API_KEY = process.env.BRIGHTDATA_API_KEY!;
+const BRIGHTDATA_BASE = "https://api.brightdata.com/datasets/v3";
+// linkedin_people_search dataset — plain trigger, no discover_by needed
+const PEOPLE_SEARCH_DATASET_ID = "gd_m8d03he47z8nwb5xc";
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 interface BrightDataProfile {
   profile_info?: {
@@ -59,65 +66,77 @@ function transformResults(
   });
 }
 
-function makeBdClient() {
-  return new bdclient({ apiKey: process.env.BRIGHTDATA_API_KEY! });
+async function triggerBrightData(
+  input: Record<string, string>
+): Promise<BrightDataProfile[]> {
+  const triggerRes = await fetch(
+    `${BRIGHTDATA_BASE}/trigger?dataset_id=${PEOPLE_SEARCH_DATASET_ID}&include_errors=true`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${BRIGHTDATA_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify([input]),
+    }
+  );
+
+  if (!triggerRes.ok) {
+    const err = await triggerRes.text();
+    throw new Error(`BrightData trigger failed ${triggerRes.status}: ${err}`);
+  }
+
+  const { snapshot_id } = await triggerRes.json();
+  if (!snapshot_id) throw new Error("No snapshot_id returned");
+
+  // Poll for up to 90 seconds
+  const deadline = Date.now() + 90000;
+  while (Date.now() < deadline) {
+    await sleep(3500);
+
+    const progressRes = await fetch(
+      `${BRIGHTDATA_BASE}/progress/${snapshot_id}`,
+      { headers: { Authorization: `Bearer ${BRIGHTDATA_API_KEY}` } }
+    );
+    const progress = await progressRes.json();
+
+    if (progress.status === "ready") {
+      const dataRes = await fetch(
+        `${BRIGHTDATA_BASE}/snapshot/${snapshot_id}?format=json`,
+        { headers: { Authorization: `Bearer ${BRIGHTDATA_API_KEY}` } }
+      );
+      const data = await dataRes.json();
+      return Array.isArray(data) ? data : [];
+    }
+
+    if (progress.status === "failed" || progress.status === "error") {
+      throw new Error(`BrightData collection failed: ${progress.status}`);
+    }
+  }
+
+  throw new Error("BrightData request timed out after 90 seconds");
 }
 
-// Discover LinkedIn profiles by first + last name
-async function discoverByName(
-  firstName: string,
-  lastName: string
-): Promise<BrightDataProfile[]> {
-  const client = makeBdClient();
-  try {
-    const job = (await client.scrape.linkedin.discoverProfiles(
-      [{ first_name: firstName, last_name: lastName }],
-      { format: "json" }
-    )) as unknown as ScrapeJob;
-    const result = await job.toResult({ pollInterval: 3500, pollTimeout: 60000 });
-    if (!result.success) throw new Error(result.error ?? "BrightData discover failed");
-    return (Array.isArray(result.data) ? result.data : []) as BrightDataProfile[];
-  } finally {
-    await client.close();
+// Build a LinkedIn people search URL from query params
+function buildLinkedInSearchUrl(opts: {
+  query?: string;
+  firstName?: string;
+  lastName?: string;
+  jobTitle?: string;
+  company?: string;
+  location?: string;
+}): string {
+  const qs = new URLSearchParams();
+  if (opts.firstName && opts.lastName) {
+    qs.set("firstName", opts.firstName);
+    qs.set("lastName", opts.lastName);
+  } else {
+    const keywords = [opts.query, opts.jobTitle, opts.company, opts.location]
+      .filter(Boolean)
+      .join(" ");
+    qs.set("keywords", keywords);
   }
-}
-
-// Keyword search: Google → LinkedIn URLs → collect profiles
-async function discoverByKeyword(
-  query: string,
-  jobTitle: string,
-  company: string,
-  location: string,
-  country: string
-): Promise<BrightDataProfile[]> {
-  const client = makeBdClient();
-  try {
-    const parts = [query, jobTitle, company, location].filter(Boolean);
-    const searchQuery = parts.join(" ") + " site:linkedin.com/in";
-
-    const searchResults = await client.search.google(searchQuery, {
-      format: "json",
-      ...(country ? { country: country.toLowerCase().slice(0, 2) } : {}),
-    });
-
-    const urls = (Array.isArray(searchResults) ? searchResults : [])
-      .map((r: Record<string, unknown>) => r.link as string)
-      .filter((link) => typeof link === "string" && link.includes("linkedin.com/in/"))
-      .slice(0, 10);
-
-    if (urls.length === 0) return [];
-
-    const result = await client.scrape.linkedin.profiles(urls, {
-      pollInterval: 3500,
-      pollTimeout: 60000,
-      format: "json",
-    });
-
-    if (!result.success) throw new Error(result.error ?? "BrightData collect failed");
-    return (Array.isArray(result.data) ? result.data : []) as BrightDataProfile[];
-  } finally {
-    await client.close();
-  }
+  return `https://www.linkedin.com/search/results/people/?${qs.toString()}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -187,9 +206,11 @@ export async function POST(req: NextRequest) {
     let rawData: BrightDataProfile[];
 
     if (looksLikeName) {
-      rawData = await discoverByName(words[0], words[1]);
+      const searchUrl = buildLinkedInSearchUrl({ firstName: words[0], lastName: words[1] });
+      rawData = await triggerBrightData({ url: searchUrl, first_name: words[0], last_name: words[1] });
     } else {
-      rawData = await discoverByKeyword(query, jobTitle, company, location, country);
+      const searchUrl = buildLinkedInSearchUrl({ query, jobTitle, company, location });
+      rawData = await triggerBrightData({ url: searchUrl });
     }
 
     leads = transformResults(rawData, { industry, experience, location: location || country });

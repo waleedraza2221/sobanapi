@@ -1,0 +1,9 @@
+{
+	"servers": {
+		"brightdata": {
+			"type": "http",
+			"url": "https://mcp.brightdata.com/mcp?token=934cf36f-b71d-41e2-b4c1-6d41493a2869"
+		},
+	},
+	"inputs": []
+}
