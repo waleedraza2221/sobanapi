@@ -147,7 +147,7 @@ function SearchPage() {
     <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Search Leads</h1>
-        <p className="text-gray-500 mt-1">Find professionals by role, company, location, and more.</p>
+        <p className="text-gray-500 mt-1">Search by full name (e.g. <span className="font-medium text-gray-700">Elon Musk</span>) or keyword (e.g. <span className="font-medium text-gray-700">CEO SaaS New York</span>). Use filters to narrow results.</p>
       </div>
 
       {/* Search Form */}
@@ -162,7 +162,7 @@ function SearchPage() {
               type="text"
               value={filters.query}
               onChange={(e) => set("query", e.target.value)}
-              placeholder="Role, title, company, or keyword…"
+              placeholder="Full name (John Doe) or keywords (CEO fintech London)…"
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
             />
           </div>
@@ -208,17 +208,17 @@ function SearchPage() {
             {/* Row 1 */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Job Title</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Job Title <span className="text-blue-500 font-normal">(applied to search)</span></label>
                 <input
                   type="text"
                   value={filters.jobTitle}
                   onChange={(e) => set("jobTitle", e.target.value)}
-                  placeholder="e.g. CTO, Engineer…"
+                  placeholder="e.g. CTO, Software Engineer…"
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Company</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Company <span className="text-blue-500 font-normal">(applied to search)</span></label>
                 <input
                   type="text"
                   value={filters.company}
@@ -238,7 +238,7 @@ function SearchPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Industry</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Industry <span className="text-gray-400 font-normal">(filters results)</span></label>
                 <select
                   value={filters.industry}
                   onChange={(e) => set("industry", e.target.value)}
@@ -344,7 +344,11 @@ function SearchPage() {
         <div className="text-center py-20 text-gray-400">
           <Search size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-lg font-medium">Run a search to find leads</p>
-          <p className="text-sm mt-1">Try "Bill Gates" or "CEO SaaS New York"</p>
+          <div className="text-sm mt-2 space-y-1">
+            <p><span className="font-medium text-gray-600">Name search:</span> "Elon Musk", "Satya Nadella"</p>
+            <p><span className="font-medium text-gray-600">Keyword search:</span> "CEO SaaS", "software engineer Google"</p>
+            <p><span className="font-medium text-gray-600">With filters:</span> Add Job Title, Company, or Location for better results</p>
+          </div>
         </div>
       )}
 

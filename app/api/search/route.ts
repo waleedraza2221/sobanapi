@@ -128,13 +128,17 @@ function buildLinkedInSearchUrl(opts: {
 }): string {
   const qs = new URLSearchParams();
   if (opts.firstName && opts.lastName) {
+    // Name-based search
     qs.set("firstName", opts.firstName);
     qs.set("lastName", opts.lastName);
   } else {
-    const keywords = [opts.query, opts.jobTitle, opts.company, opts.location]
+    // Keyword-based: combine query + company + location into keywords
+    const keywords = [opts.query, opts.company, opts.location]
       .filter(Boolean)
       .join(" ");
-    qs.set("keywords", keywords);
+    if (keywords) qs.set("keywords", keywords);
+    // Job title uses LinkedIn's dedicated titleFreeText param
+    if (opts.jobTitle) qs.set("titleFreeText", opts.jobTitle);
   }
   return `https://www.linkedin.com/search/results/people/?${qs.toString()}`;
 }
