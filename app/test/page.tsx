@@ -4,18 +4,15 @@ import { useState } from "react";
 export default function TestPage() {
   const [query, setQuery] = useState("software developer");
   const [loading, setLoading] = useState(false);
-  const [raw, setRaw] = useState<Record<string, unknown>[] | null>(null);
-  const [transformed, setTransformed] = useState<Record<string, unknown>[] | null>(null);
+  const [response, setResponse] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function runTest() {
     setLoading(true);
     setError(null);
-    setRaw(null);
-    setTransformed(null);
+    setResponse(null);
 
     try {
-      // Call the debug endpoint that returns raw + transformed data
       const res = await fetch("/api/test-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -26,8 +23,24 @@ export default function TestPage() {
         setError(data.error ?? `HTTP ${res.status}`);
         return;
       }
-      setRaw(data.raw);
-      setTransformed(data.transformed);
+      setResponse(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchSnapshot() {
+    const id = prompt("Enter snapshot ID (e.g. sd_xxx):");
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    setResponse(null);
+    try {
+      const res = await fetch(`/api/test-snapshot?id=${encodeURIComponent(id)}`);
+      const data = await res.json();
+      setResponse(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
@@ -58,11 +71,18 @@ export default function TestPage() {
         >
           {loading ? "Searching…" : "Test Search"}
         </button>
+        <button
+          onClick={fetchSnapshot}
+          disabled={loading}
+          className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 px-4 py-2 rounded-lg font-medium text-sm"
+        >
+          Fetch Snapshot
+        </button>
       </div>
 
       {loading && (
         <div className="text-yellow-400 mb-4">
-          ⏳ Waiting for BrightData (can take up to 90s)…
+          Waiting for BrightData (can take up to 90s)…
         </div>
       )}
 
@@ -73,26 +93,13 @@ export default function TestPage() {
         </div>
       )}
 
-      {raw && (
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold mb-2 text-yellow-400">
-            Raw BrightData Response ({Array.isArray(raw) ? raw.length : 0}{" "}
-            items)
-          </h2>
-          <pre className="bg-gray-900 border border-gray-700 rounded-lg p-4 text-xs overflow-auto max-h-[500px] whitespace-pre-wrap">
-            {JSON.stringify(raw, null, 2)}
-          </pre>
-        </div>
-      )}
-
-      {transformed && (
+      {response && (
         <div>
-          <h2 className="text-lg font-semibold mb-2 text-green-400">
-            Transformed Leads ({Array.isArray(transformed) ? transformed.length : 0}{" "}
-            items)
+          <h2 className="text-lg font-semibold mb-2 text-cyan-400">
+            Full Server Response
           </h2>
-          <pre className="bg-gray-900 border border-gray-700 rounded-lg p-4 text-xs overflow-auto max-h-[500px] whitespace-pre-wrap">
-            {JSON.stringify(transformed, null, 2)}
+          <pre className="bg-gray-900 border border-gray-700 rounded-lg p-4 text-xs overflow-auto max-h-[80vh] whitespace-pre-wrap">
+            {JSON.stringify(response, null, 2)}
           </pre>
         </div>
       )}
