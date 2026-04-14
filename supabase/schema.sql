@@ -20,10 +20,12 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "Users can view own profile" on public.profiles;
 create policy "Users can view own profile"
   on public.profiles for select
   using (auth.uid() = id);
 
+drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile"
   on public.profiles for update
   using (auth.uid() = id);
@@ -67,6 +69,7 @@ create table if not exists public.searches (
 
 alter table public.searches enable row level security;
 
+drop policy if exists "Users can manage own searches" on public.searches;
 create policy "Users can manage own searches"
   on public.searches
   using (auth.uid() = user_id)
@@ -93,6 +96,7 @@ create table if not exists public.leads (
 
 alter table public.leads enable row level security;
 
+drop policy if exists "Users can manage own leads" on public.leads;
 create policy "Users can manage own leads"
   on public.leads
   using (auth.uid() = user_id)
@@ -111,6 +115,7 @@ create table if not exists public.lead_lists (
 
 alter table public.lead_lists enable row level security;
 
+drop policy if exists "Users can manage own lists" on public.lead_lists;
 create policy "Users can manage own lists"
   on public.lead_lists
   using (auth.uid() = user_id)
@@ -129,6 +134,7 @@ create table if not exists public.lead_list_items (
 
 alter table public.lead_list_items enable row level security;
 
+drop policy if exists "Users can manage own list items" on public.lead_list_items;
 create policy "Users can manage own list items"
   on public.lead_list_items
   using (
@@ -196,10 +202,12 @@ create table if not exists public.payments (
 
 alter table public.payments enable row level security;
 
+drop policy if exists "Users can view own payments" on public.payments;
 create policy "Users can view own payments"
   on public.payments for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can insert own payments" on public.payments;
 create policy "Users can insert own payments"
   on public.payments for insert
   with check (auth.uid() = user_id);
@@ -218,6 +226,7 @@ create policy "Users can insert own payments"
 -- Run these in Supabase Dashboard > SQL Editor after creating the bucket:
 
 -- Allow authenticated users to upload to their own folder
+drop policy if exists "Users can upload own screenshots" on storage.objects;
 create policy "Users can upload own screenshots"
   on storage.objects for insert
   to authenticated
@@ -227,6 +236,7 @@ create policy "Users can upload own screenshots"
   );
 
 -- Allow users to read their own screenshots
+drop policy if exists "Users can read own screenshots" on storage.objects;
 create policy "Users can read own screenshots"
   on storage.objects for select
   to authenticated
