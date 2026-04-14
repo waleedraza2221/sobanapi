@@ -4,8 +4,8 @@ import { useState } from "react";
 export default function TestPage() {
   const [query, setQuery] = useState("software developer");
   const [loading, setLoading] = useState(false);
-  const [raw, setRaw] = useState<unknown>(null);
-  const [transformed, setTransformed] = useState<unknown>(null);
+  const [raw, setRaw] = useState<Record<string, unknown>[] | null>(null);
+  const [transformed, setTransformed] = useState<Record<string, unknown>[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function runTest() {
