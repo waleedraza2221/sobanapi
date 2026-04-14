@@ -63,7 +63,7 @@ export default function AdminOverviewPage() {
   const stats = [
     {
       label: "Total Users",
-      value: loading ? "—" : totalUsers,
+      value: loading ? "-" : totalUsers,
       sub: `+${newThisMonth} this month`,
       icon: Users,
       color: "text-blue-600",
@@ -71,7 +71,7 @@ export default function AdminOverviewPage() {
     },
     {
       label: "Pending Payments",
-      value: loading ? "—" : pendingPayments.length,
+      value: loading ? "-" : pendingPayments.length,
       sub: "Awaiting review",
       icon: Clock,
       color: "text-yellow-600",
@@ -80,7 +80,7 @@ export default function AdminOverviewPage() {
     },
     {
       label: "Revenue This Month",
-      value: loading ? "—" : `$${monthRevenue}`,
+      value: loading ? "-" : `$${monthRevenue}`,
       sub: `$${totalRevenue} all time`,
       icon: TrendingUp,
       color: "text-green-600",
@@ -88,7 +88,7 @@ export default function AdminOverviewPage() {
     },
     {
       label: "Expired Plans",
-      value: loading ? "—" : expiredCount,
+      value: loading ? "-" : expiredCount,
       sub: "Need renewal",
       icon: AlertTriangle,
       color: "text-red-500",
@@ -102,12 +102,11 @@ export default function AdminOverviewPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Overview</h1>
         <p className="text-gray-500 mt-1 text-sm">
-          Admin dashboard ·{" "}
+          Admin dashboard &middot;{" "}
           {now.toLocaleDateString("en-US", { dateStyle: "long" })}
         </p>
       </div>
 
-      {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {stats.map(({ label, value, sub, icon: Icon, color, bg, href }) =>
           href ? (
@@ -137,7 +136,6 @@ export default function AdminOverviewPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Plan breakdown */}
         <div className="bg-white rounded-2xl border border-gray-200 p-6">
           <h2 className="font-semibold text-gray-900 mb-4">Plan Distribution</h2>
           {loading ? (
@@ -157,8 +155,7 @@ export default function AdminOverviewPage() {
                       <div className="flex items-center justify-between text-sm mb-1">
                         <span className={`font-medium ${cfg.color}`}>{cfg.label}</span>
                         <span className="text-gray-500">
-                          {count} users{" "}
-                          <span className="text-gray-300">·</span> {pct}%
+                          {count} users &middot; {pct}%
                         </span>
                       </div>
                       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -175,7 +172,6 @@ export default function AdminOverviewPage() {
           )}
         </div>
 
-        {/* Quick actions */}
         <div className="bg-white rounded-2xl border border-gray-200 p-6">
           <h2 className="font-semibold text-gray-900 mb-4">Quick Actions</h2>
           <div className="space-y-2">
