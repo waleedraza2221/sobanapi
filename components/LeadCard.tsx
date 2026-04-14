@@ -3,12 +3,13 @@ import Link from "next/link";
 
 interface LeadCardProps {
   lead: Lead;
-  onSave?: (id: string) => void;
-  onAddToList?: (id: string) => void;
+  onSave?: (lead: Lead) => void;
+  onAddToList?: (lead: Lead) => void;
   compact?: boolean;
+  saved?: boolean;
 }
 
-export default function LeadCard({ lead, compact = false }: LeadCardProps) {
+export default function LeadCard({ lead, compact = false, onSave, saved = false }: LeadCardProps) {
   const initials = lead.name
     .split(" ")
     .map((n) => n[0])
@@ -25,6 +26,20 @@ export default function LeadCard({ lead, compact = false }: LeadCardProps) {
   ];
   const color = colors[lead.id.charCodeAt(lead.id.length - 1) % colors.length];
 
+  const profileParams = new URLSearchParams({
+    name: lead.name,
+    title: lead.title,
+    company: lead.company,
+    location: lead.location,
+    industry: lead.industry,
+    url: lead.linkedinUrl,
+    ...(lead.email ? { email: lead.email } : {}),
+    ...(lead.phone ? { phone: lead.phone } : {}),
+    ...(lead.companySize ? { size: lead.companySize } : {}),
+    ...(lead.experience ? { exp: lead.experience } : {}),
+  });
+  const profileHref = `/profile/${lead.id}?${profileParams}`;
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow group">
       <div className="flex items-start justify-between gap-4">
@@ -37,7 +52,7 @@ export default function LeadCard({ lead, compact = false }: LeadCardProps) {
           </div>
           <div className="flex-1 min-w-0">
             <Link
-              href={`/profile/${lead.id}`}
+              href={profileHref}
               className="font-semibold text-gray-900 hover:text-blue-600 transition-colors text-sm"
             >
               {lead.name}
@@ -57,8 +72,16 @@ export default function LeadCard({ lead, compact = false }: LeadCardProps) {
           >
             LinkedIn
           </a>
-          <button className="text-xs px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            Save
+          <button
+            onClick={() => onSave?.(lead)}
+            disabled={saved}
+            className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors ${
+              saved
+                ? "bg-green-100 text-green-700 cursor-default"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            }`}
+          >
+            {saved ? "Saved ✓" : "Save"}
           </button>
         </div>
       </div>

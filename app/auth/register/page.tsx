@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { plans } from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/client";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -11,14 +12,35 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("free");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   function handleStep1(e: React.FormEvent) {
     e.preventDefault();
     setStep(2);
   }
 
-  function handleFinish() {
+  async function handleFinish() {
+    setError("");
+    setLoading(true);
+    const supabase = createClient();
+    const { error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name },
+      },
+    });
+    setLoading(false);
+    if (authError) {
+      setError(authError.message);
+      setStep(1);
+      return;
+    }
+    // Auto sign-in after sign-up (if email confirm is disabled)
+    await supabase.auth.signInWithPassword({ email, password });
     router.push("/dashboard");
+    router.refresh();
   }
 
   return (
@@ -98,6 +120,11 @@ export default function RegisterPage() {
           {step === 2 && (
             <div>
               <h2 className="font-semibold text-gray-900 mb-4">Choose your plan</h2>
+              {error && (
+                <div className="text-sm text-red-600 bg-red-50 border border-red-100 px-4 py-3 rounded-xl mb-4">
+                  {error}
+                </div>
+              )}
               <div className="space-y-3 mb-6">
                 {plans.filter((p) => p.id !== "enterprise").map((plan) => (
                   <button
@@ -130,9 +157,10 @@ export default function RegisterPage() {
               </div>
               <button
                 onClick={handleFinish}
-                className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition-colors"
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {selectedPlan === "free" ? "Start Free" : "Start Free Trial"}
+                {loading ? "Creating account…" : selectedPlan === "free" ? "Start Free" : "Start Free Trial"}
               </button>
               <p className="text-xs text-gray-400 text-center mt-3">No credit card required for free plan</p>
             </div>

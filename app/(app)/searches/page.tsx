@@ -1,19 +1,97 @@
 "use client";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { mockRecentSearches } from "@/lib/mock-data";
-import { Search, MapPin, Briefcase, Clock, RefreshCw, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Search, MapPin, Briefcase, Clock, RefreshCw, Trash2, Lock } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { planHasHistory } from "@/lib/plans";
+
+interface SearchRecord {
+  id: string;
+  query: string;
+  location?: string;
+  industry?: string;
+  result_count: number;
+  searched_at: string;
+}
 
 export default function RecentSearchesPage() {
-  const [searches, setSearches] = useState(mockRecentSearches);
+  const [searches, setSearches] = useState<SearchRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [canAccess, setCanAccess] = useState(true);
 
-  function removeSearch(id: string) {
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("plan")
+        .eq("id", user.id)
+        .single();
+
+      if (!planHasHistory(profile?.plan ?? "free")) {
+        setCanAccess(false);
+        setLoading(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("searches")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("searched_at", { ascending: false });
+      setSearches(data ?? []);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  async function removeSearch(id: string) {
     setSearches((prev) => prev.filter((s) => s.id !== id));
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("searches").delete().eq("id", id).eq("user_id", user.id);
+    }
   }
 
   function formatDate(dateStr: string) {
     const d = new Date(dateStr);
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto space-y-3">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-24 bg-gray-200 rounded-2xl animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!canAccess) {
+    return (
+      <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
+        <div className="text-center py-24 bg-white rounded-2xl border border-gray-200">
+          <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Lock size={24} className="text-gray-400" />
+          </div>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Search History Locked</h2>
+          <p className="text-gray-500 text-sm max-w-xs mx-auto mb-6">
+            Search history is available on <strong>Starter</strong>, <strong>Pro</strong>, and <strong>Enterprise</strong> plans.
+          </p>
+          <Link
+            href="/pricing"
+            className="inline-block bg-blue-600 text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+          >
+            View Pricing Plans
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -58,32 +136,20 @@ export default function RecentSearchesPage() {
                       </span>
                     )}
                     <span className="flex items-center gap-1">
-                      <Clock size={11} /> {formatDate(s.searchedAt)}
+                      <Clock size={11} /> {formatDate(s.searched_at)}
                     </span>
                   </div>
 
                   {/* Filter badges */}
-                  {s.filters && Object.keys(s.filters).length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {Object.entries(s.filters).map(([key, val]) => (
-                        <span
-                          key={key}
-                          className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full"
-                        >
-                          {key}: {String(val)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                   <div className="text-right mr-2">
-                    <div className="text-sm font-semibold text-gray-900">{s.resultCount}</div>
+                    <div className="text-sm font-semibold text-gray-900">{s.result_count}</div>
                     <div className="text-xs text-gray-400">results</div>
                   </div>
                   <Link
-                    href={`/search?q=${encodeURIComponent(s.query)}&location=${encodeURIComponent(s.location)}`}
+                    href={`/search?q=${encodeURIComponent(s.query)}&location=${encodeURIComponent(s.location ?? "")}`}
                     className="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
                   >
                     <RefreshCw size={12} /> Re-run

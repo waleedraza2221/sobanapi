@@ -13,9 +13,9 @@ export default function Navbar() {
           LeadHunter
         </Link>
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
-          <Link href="#features" className="hover:text-gray-900 transition-colors">Features</Link>
+          <Link href="/features" className="hover:text-gray-900 transition-colors">Features</Link>
           <Link href="/pricing" className="hover:text-gray-900 transition-colors">Pricing</Link>
-          <Link href="#about" className="hover:text-gray-900 transition-colors">About</Link>
+          <Link href="/about" className="hover:text-gray-900 transition-colors">About</Link>
         </nav>
         <div className="hidden md:flex items-center gap-3">
           <Link
@@ -43,9 +43,9 @@ export default function Navbar() {
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-gray-100 bg-white px-4 py-4 space-y-1">
-          <Link href="#features" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Features</Link>
+          <Link href="/features" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Features</Link>
           <Link href="/pricing" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Pricing</Link>
-          <Link href="#about" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">About</Link>
+          <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">About</Link>
           <div className="pt-3 border-t border-gray-100 flex flex-col gap-2">
             <Link href="/auth/login" className="block text-center px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50">Sign in</Link>
             <Link href="/auth/register" className="block text-center px-4 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700">Get Started Free</Link>

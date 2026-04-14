@@ -1,9 +1,8 @@
 "use client";
-import { useState, useMemo, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { mockLeads } from "@/lib/mock-data";
 import LeadCard from "@/components/LeadCard";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal, X, Loader2 } from "lucide-react";
 
 const industries = ["All Industries", "SaaS", "FinTech", "E-Commerce", "Healthcare", "EdTech", "Marketing", "Real Estate"];
 const experienceLevels = ["Any", "Entry Level", "Mid Level", "Senior", "Director", "VP", "C-Suite"];
@@ -18,6 +17,20 @@ type Filters = {
   remote: boolean;
   hasEmail: boolean;
 };
+
+interface Lead {
+  id: string;
+  name: string;
+  title: string;
+  company: string;
+  location: string;
+  industry: string;
+  linkedinUrl: string;
+  email?: string;
+  phone?: string;
+  companySize?: string;
+  experience?: string;
+}
 
 export default function SearchPageWrapper() {
   return (
@@ -39,49 +52,63 @@ function SearchPage() {
     hasEmail: false,
   });
   const [showFilters, setShowFilters] = useState(false);
-  const [searched, setSearched] = useState(!!params.get("q"));
+  const [results, setResults] = useState<Lead[]>([]);
+  const [searched, setSearched] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   function set(key: keyof Filters, val: string | boolean) {
     setFilters((f) => ({ ...f, [key]: val }));
   }
 
-  function handleSearch(e?: React.FormEvent) {
+  async function handleSearch(e?: React.FormEvent) {
     e?.preventDefault();
+    if (!filters.query.trim()) return;
+    setLoading(true);
+    setSearchError("");
     setSearched(true);
+
+    try {
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: filters.query,
+          location: filters.location,
+          industry: filters.industry === "All Industries" ? "" : filters.industry,
+          experience: filters.experience === "Any" ? "" : filters.experience,
+          companySize: filters.companySize === "Any" ? "" : filters.companySize,
+          hasEmail: filters.hasEmail,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setSearchError(data.error ?? "Search failed. Please try again.");
+        setResults([]);
+      } else {
+        setResults(data.leads ?? []);
+      }
+    } catch {
+      setSearchError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function handleSave(id: string) {
-    setSavedIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
+  async function handleSave(lead: Lead) {
+    if (savedIds.has(lead.id)) return;
+    const res = await fetch("/api/leads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(lead),
     });
+    if (res.ok) {
+      setSavedIds((prev) => new Set(prev).add(lead.id));
+    }
   }
-
-  const results = useMemo(() => {
-    if (!searched) return [];
-    return mockLeads.filter((lead) => {
-      const q = filters.query.toLowerCase();
-      if (
-        q &&
-        !lead.name.toLowerCase().includes(q) &&
-        !lead.title.toLowerCase().includes(q) &&
-        !lead.company.toLowerCase().includes(q) &&
-        !lead.industry.toLowerCase().includes(q)
-      )
-        return false;
-      if (filters.location && !lead.location.toLowerCase().includes(filters.location.toLowerCase()))
-        return false;
-      if (filters.industry !== "All Industries" && lead.industry !== filters.industry)
-        return false;
-      if (filters.experience !== "Any" && lead.experience !== filters.experience)
-        return false;
-      if (filters.hasEmail && !lead.email) return false;
-      return true;
-    });
-  }, [searched, filters]);
-
   const activeFilterCount = [
     filters.industry !== "All Industries",
     filters.experience !== "Any",
@@ -141,9 +168,11 @@ function SearchPage() {
           </button>
           <button
             type="submit"
-            className="bg-blue-600 text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+            disabled={loading}
+            className="bg-blue-600 text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center gap-2"
           >
-            Search
+            {loading && <Loader2 size={14} className="animate-spin" />}
+            {loading ? "Searching…" : "Search"}
           </button>
         </div>
 
@@ -224,16 +253,33 @@ function SearchPage() {
         )}
       </form>
 
-      {/* Results */}
-      {!searched && (
-        <div className="text-center py-20 text-gray-400">
-          <Search size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="text-lg font-medium">Run a search to find leads</p>
-          <p className="text-sm mt-1">Try "CEO in SaaS" or "Marketing Director"</p>
+      {/* Loading state */}
+      {loading && (
+        <div className="text-center py-20">
+          <Loader2 size={40} className="mx-auto mb-3 text-blue-500 animate-spin" />
+          <p className="text-lg font-medium text-gray-700">Searching LinkedIn profiles…</p>
+          <p className="text-sm text-gray-400 mt-1">This may take up to 30 seconds via BrightData.</p>
         </div>
       )}
 
-      {searched && (
+      {/* Initial state */}
+      {!searched && !loading && (
+        <div className="text-center py-20 text-gray-400">
+          <Search size={40} className="mx-auto mb-3 opacity-30" />
+          <p className="text-lg font-medium">Run a search to find leads</p>
+          <p className="text-sm mt-1">Try "Bill Gates" or "CEO SaaS New York"</p>
+        </div>
+      )}
+
+      {/* Error state */}
+      {searched && !loading && searchError && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+          <p className="text-red-700 font-medium">{searchError}</p>
+          <p className="text-red-500 text-sm mt-1">Please check your BrightData credentials or try again.</p>
+        </div>
+      )}
+
+      {searched && !loading && !searchError && (
         <>
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-gray-500">
@@ -246,8 +292,8 @@ function SearchPage() {
 
           {results.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
-              <p className="text-gray-500 font-medium">No leads match your filters</p>
-              <p className="text-sm text-gray-400 mt-1">Try adjusting your search query or filters.</p>
+              <p className="text-gray-500 font-medium">No leads found</p>
+              <p className="text-sm text-gray-400 mt-1">Try a different name or keyword.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -255,8 +301,9 @@ function SearchPage() {
                 <LeadCard
                   key={lead.id}
                   lead={lead}
-                  onSave={handleSave}
+                  onSave={() => handleSave(lead)}
                   onAddToList={() => {}}
+                  saved={savedIds.has(lead.id)}
                 />
               ))}
             </div>

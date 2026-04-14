@@ -1,33 +1,96 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { mockLists } from "@/lib/mock-data";
-import { Users, Plus, MoreHorizontal, Calendar, X } from "lucide-react";
+import { Users, Plus, MoreHorizontal, Calendar, X, Lock } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { canPlanSave } from "@/lib/plans";
+
+interface LeadList {
+  id: string;
+  name: string;
+  description?: string;
+  leadCount: number;
+  created_at: string;
+}
 
 const colors = ["bg-blue-100 text-blue-700", "bg-purple-100 text-purple-700", "bg-green-100 text-green-700", "bg-orange-100 text-orange-700"];
 
 export default function LeadsPage() {
-  const [lists, setLists] = useState(mockLists);
+  const [lists, setLists] = useState<LeadList[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [canAccess, setCanAccess] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  function createList(e: React.FormEvent) {
+  useEffect(() => {
+    async function init() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+      const { data: profile } = await supabase.from("profiles").select("plan").eq("id", user.id).single();
+      if (!canPlanSave(profile?.plan ?? "free")) {
+        setCanAccess(false);
+        setLoading(false);
+        return;
+      }
+      fetchLists();
+    }
+    init();
+  }, []);
+
+  async function fetchLists() {
+    const res = await fetch("/api/lists");
+    const data = await res.json();
+    if (data.lists) setLists(data.lists);
+    setLoading(false);
+  }
+
+  async function createList(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim()) return;
-    setLists((prev) => [
-      ...prev,
-      {
-        id: `list-${Date.now()}`,
-        name: newName.trim(),
-        description: newDesc.trim(),
-        leadCount: 0,
-        createdAt: new Date().toISOString().split("T")[0],
-      },
-    ]);
-    setNewName("");
-    setNewDesc("");
-    setShowModal(false);
+    setSaving(true);
+    const res = await fetch("/api/lists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName.trim(), description: newDesc.trim() }),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (data.list) {
+      setLists((prev) => [{ ...data.list, leadCount: 0 }, ...prev]);
+      setNewName("");
+      setNewDesc("");
+      setShowModal(false);
+    }
+  }
+
+  async function deleteList(id: string) {
+    await fetch(`/api/lists?id=${id}`, { method: "DELETE" });
+    setLists((prev) => prev.filter((l) => l.id !== id));
+  }
+
+  if (!canAccess) {
+    return (
+      <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
+        <div className="text-center py-24 bg-white rounded-2xl border border-gray-200">
+          <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Lock size={24} className="text-gray-400" />
+          </div>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Lead Lists Locked</h2>
+          <p className="text-gray-500 text-sm max-w-xs mx-auto mb-6">
+            Saving contacts and managing lead lists requires a <strong>Starter</strong>, <strong>Pro</strong>, or <strong>Enterprise</strong> plan.
+          </p>
+          <Link
+            href="/pricing"
+            className="inline-block bg-blue-600 text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+          >
+            View Pricing Plans
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -45,7 +108,13 @@ export default function LeadsPage() {
         </button>
       </div>
 
-      {lists.length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-40 bg-gray-200 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      ) : lists.length === 0 ? (
         <div className="text-center py-24 bg-white rounded-2xl border border-gray-200">
           <Users size={36} className="mx-auto text-gray-300 mb-3" />
           <p className="font-medium text-gray-700">No lists yet</p>
@@ -72,8 +141,8 @@ export default function LeadsPage() {
                   {list.name.charAt(0)}
                 </div>
                 <button
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded-lg"
-                  onClick={(e) => e.preventDefault()}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 hover:text-red-500 rounded-lg"
+                  onClick={(e) => { e.preventDefault(); deleteList(list.id); }}
                 >
                   <MoreHorizontal size={16} className="text-gray-400" />
                 </button>
@@ -91,7 +160,7 @@ export default function LeadsPage() {
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-gray-400">
                   <Calendar size={12} />
-                  {list.createdAt}
+                  {list.created_at?.split("T")[0]}
                 </div>
               </div>
             </Link>
@@ -145,9 +214,10 @@ export default function LeadsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+                  disabled={saving}
+                  className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
                 >
-                  Create List
+                  {saving ? "Creating…" : "Create List"}
                 </button>
               </div>
             </form>
