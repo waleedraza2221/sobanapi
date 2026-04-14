@@ -214,13 +214,10 @@ create policy "Users can insert own payments"
 
 -- --------------------------------------------------------
 -- 11. Storage bucket for payment screenshots
---     Run in Supabase dashboard: Storage > New Bucket
---     Name: payment-screenshots, Public: false
---     Or use SQL below if pg_storage extension is enabled:
--- insert into storage.buckets (id, name, public)
---   values ('payment-screenshots', 'payment-screenshots', false)
---   on conflict do nothing;
 -- --------------------------------------------------------
+insert into storage.buckets (id, name, public)
+  values ('payment-screenshots', 'payment-screenshots', false)
+  on conflict (id) do nothing;
 
 -- Storage RLS policies for payment-screenshots bucket
 -- Run these in Supabase Dashboard > SQL Editor after creating the bucket:

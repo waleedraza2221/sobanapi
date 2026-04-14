@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
-import { CreditCard, Check, X, ExternalLink } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { CreditCard, Check, X, ExternalLink, RefreshCw, AlertCircle } from "lucide-react";
 
 interface Payment {
   id: string;
@@ -28,32 +28,47 @@ type FilterKey = "all" | "pending" | "approved" | "rejected";
 export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [paymentFilter, setPaymentFilter] = useState<FilterKey>("pending");
   const [reviewNote, setReviewNote] = useState<Record<string, string>>({});
   const [reviewLoading, setReviewLoading] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [screenshotModal, setScreenshotModal] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/admin/payments")
-      .then((r) => r.json())
-      .then((d) => {
-        setPayments(d.payments ?? []);
-        setLoading(false);
-      });
+  const loadPayments = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/payments");
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error ?? `HTTP ${res.status}`);
+      setPayments(d.payments ?? []);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load payments");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadPayments();
+  }, [loadPayments]);
 
   async function reviewPayment(paymentId: string, action: "approved" | "rejected") {
     setReviewLoading(paymentId + action);
-    const res = await fetch("/api/admin/payments", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        paymentId,
-        action,
-        note: reviewNote[paymentId] || null,
-      }),
-    });
-    if (res.ok) {
+    setReviewError(null);
+    try {
+      const res = await fetch("/api/admin/payments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentId,
+          action,
+          note: reviewNote[paymentId] || null,
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error ?? `HTTP ${res.status}`);
       setPayments((prev) =>
         prev.map((p) =>
           p.id === paymentId
@@ -66,8 +81,11 @@ export default function AdminPaymentsPage() {
             : p
         )
       );
+    } catch (err: unknown) {
+      setReviewError(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setReviewLoading(null);
     }
-    setReviewLoading(null);
   }
 
   const pendingCount = payments.filter((p) => p.status === "pending").length;
@@ -77,17 +95,49 @@ export default function AdminPaymentsPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
-        <p className="text-gray-500 mt-1 text-sm">
-          {payments.length} total
-          {pendingCount > 0 && (
-            <span className="text-yellow-600 font-medium ml-1">
-              · {pendingCount} pending
-            </span>
-          )}
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            {loading ? "Loading..." : `${payments.length} total`}
+            {!loading && pendingCount > 0 && (
+              <span className="text-yellow-600 font-medium ml-1">
+                · {pendingCount} pending
+              </span>
+            )}
+          </p>
+        </div>
+        <button
+          onClick={loadPayments}
+          disabled={loading}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+        >
+          <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+          Refresh
+        </button>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="mb-4 flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <AlertCircle size={16} className="text-red-500 flex-shrink-0" />
+          <p className="text-sm text-red-700 flex-1">{error}</p>
+          <button onClick={loadPayments} className="text-xs font-medium text-red-600 hover:underline">
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Review action error */}
+      {reviewError && (
+        <div className="mb-4 flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <AlertCircle size={16} className="text-red-500 flex-shrink-0" />
+          <p className="text-sm text-red-700 flex-1">{reviewError}</p>
+          <button onClick={() => setReviewError(null)} className="text-xs text-red-400 hover:text-red-600">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div className="flex gap-2 mb-5 flex-wrap">
