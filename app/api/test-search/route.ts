@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
         // Transform using same logic as search route
         const transformed = arr.map((p: Record<string, unknown>) => ({
           id: p.id ?? "no-id",
-          name: p.name ?? `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || "Unknown",
+          name: p.name ?? (`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || "Unknown"),
           title: p.position ?? (p.current_company as Record<string, unknown>)?.title ?? "Professional",
           company: (p.current_company as Record<string, unknown>)?.name ?? "Unknown Company",
           location: p.city ?? p.location ?? "Unknown",
