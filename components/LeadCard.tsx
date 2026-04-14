@@ -9,7 +9,7 @@ interface LeadCardProps {
   saved?: boolean;
 }
 
-export default function LeadCard({ lead, compact = false, onSave, saved = false }: LeadCardProps) {
+export default function LeadCard({ lead, compact = false, onSave, onAddToList, saved = false }: LeadCardProps) {
   const initials = lead.name
     .split(" ")
     .map((n) => n[0])
@@ -72,6 +72,14 @@ export default function LeadCard({ lead, compact = false, onSave, saved = false 
           >
             LinkedIn
           </a>
+          {saved && onAddToList && (
+            <button
+              onClick={() => onAddToList(lead)}
+              className="text-xs px-2.5 py-1.5 border border-blue-200 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+            >
+              + List
+            </button>
+          )}
           <button
             onClick={() => onSave?.(lead)}
             disabled={saved}

@@ -1,5 +1,5 @@
 "use client";
-import { useState, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import LeadCard from "@/components/LeadCard";
 import { Search, SlidersHorizontal, X, Loader2 } from "lucide-react";
@@ -71,6 +71,64 @@ function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  // Maps BrightData lead id → DB lead id (for list assignment)
+  const [dbIdMap, setDbIdMap] = useState<Record<string, string>>({});
+
+  // Lead list picker state
+  const [lists, setLists] = useState<{ id: string; name: string }[]>([]);
+  const [listPickerLead, setListPickerLead] = useState<Lead | null>(null);
+  const [newListName, setNewListName] = useState("");
+
+  const fetchLists = useCallback(async () => {
+    const res = await fetch("/api/lists");
+    if (res.ok) {
+      const data = await res.json();
+      setLists(data.lists ?? []);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLists();
+  }, [fetchLists]);
+
+  async function handleAddToList(listId: string) {
+    if (!listPickerLead) return;
+    const dbLeadId = dbIdMap[listPickerLead.id];
+    if (!dbLeadId) {
+      alert("Save the lead first before adding to a list.");
+      setListPickerLead(null);
+      return;
+    }
+    const res = await fetch("/api/lists/items", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listId, leadId: dbLeadId }),
+    });
+    if (res.ok) {
+      setListPickerLead(null);
+    } else {
+      const data = await res.json().catch(() => null);
+      alert(data?.error ?? "Failed to add to list");
+    }
+  }
+
+  async function handleCreateListAndAdd() {
+    if (!newListName.trim() || !listPickerLead) return;
+    const createRes = await fetch("/api/lists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newListName.trim() }),
+    });
+    if (!createRes.ok) {
+      const data = await createRes.json().catch(() => null);
+      alert(data?.error ?? "Failed to create list");
+      return;
+    }
+    const { list } = await createRes.json();
+    setNewListName("");
+    await fetchLists();
+    await handleAddToList(list.id);
+  }
 
   function set(key: keyof Filters, val: string | boolean) {
     setFilters((f) => ({ ...f, [key]: val }));
@@ -126,7 +184,11 @@ function SearchPage() {
       body: JSON.stringify(lead),
     });
     if (res.ok) {
+      const { lead: savedLead } = await res.json();
       setSavedIds((prev) => new Set(prev).add(lead.id));
+      if (savedLead?.id) {
+        setDbIdMap((prev) => ({ ...prev, [lead.id]: savedLead.id }));
+      }
     } else {
       const data = await res.json().catch(() => null);
       alert(data?.error ?? "Failed to save lead");
@@ -386,13 +448,66 @@ function SearchPage() {
                   key={lead.id}
                   lead={lead}
                   onSave={() => handleSave(lead)}
-                  onAddToList={() => {}}
+                  onAddToList={() => setListPickerLead(lead)}
                   saved={savedIds.has(lead.id)}
                 />
               ))}
             </div>
           )}
         </>
+      )}
+
+      {/* List Picker Modal */}
+      {listPickerLead && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setListPickerLead(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Add to List</h3>
+              <button onClick={() => setListPickerLead(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Add <span className="font-medium text-gray-700">{listPickerLead.name}</span> to a lead list
+            </p>
+
+            {lists.length > 0 ? (
+              <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
+                {lists.map((list) => (
+                  <button
+                    key={list.id}
+                    onClick={() => handleAddToList(list.id)}
+                    className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors text-sm font-medium text-gray-700"
+                  >
+                    {list.name}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 mb-4">No lists yet. Create one below.</p>
+            )}
+
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs text-gray-500 mb-2">Or create a new list</p>
+              <div className="flex gap-2">
+                <input
+                  value={newListName}
+                  onChange={(e) => setNewListName(e.target.value)}
+                  placeholder="New list name…"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onKeyDown={(e) => e.key === "Enter" && handleCreateListAndAdd()}
+                />
+                <button
+                  onClick={handleCreateListAndAdd}
+                  disabled={!newListName.trim()}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Create & Add
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
