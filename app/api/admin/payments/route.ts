@@ -24,27 +24,39 @@ export async function GET() {
 
     const { data, error } = await admin
       .from("payments")
-      .select(`
-        *,
-        profiles (
-          name,
-          email,
-          plan,
-          plan_expires_at
-        )
-      `)
+      .select("*")
       .order("submitted_at", { ascending: false });
 
     if (error) throw error;
 
+    // Fetch profiles for all unique user_ids
+    const userIds = [...new Set((data ?? []).map((p) => p.user_id))];
+    const profileMap: Record<string, { name: string | null; email: string; plan: string; plan_expires_at: string | null }> = {};
+    if (userIds.length > 0) {
+      const { data: profiles } = await admin
+        .from("profiles")
+        .select("id, name, email, plan, plan_expires_at")
+        .in("id", userIds);
+      for (const p of profiles ?? []) {
+        profileMap[p.id] = { name: p.name, email: p.email, plan: p.plan, plan_expires_at: p.plan_expires_at };
+      }
+    }
+
     // Generate signed URLs for screenshots (bucket is private)
     const payments = await Promise.all(
       (data ?? []).map(async (payment) => {
-        if (!payment.screenshot_url) return payment;
-        const { data: signed } = await admin.storage
-          .from("payment-screenshots")
-          .createSignedUrl(payment.screenshot_url, 60 * 60); // 1 hour
-        return { ...payment, screenshot_signed_url: signed?.signedUrl ?? null };
+        let screenshot_signed_url: string | null = null;
+        if (payment.screenshot_url) {
+          const { data: signed } = await admin.storage
+            .from("payment-screenshots")
+            .createSignedUrl(payment.screenshot_url, 60 * 60); // 1 hour
+          screenshot_signed_url = signed?.signedUrl ?? null;
+        }
+        return {
+          ...payment,
+          screenshot_signed_url,
+          profiles: profileMap[payment.user_id] ?? null,
+        };
       })
     );
 
