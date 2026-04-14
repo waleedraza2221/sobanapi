@@ -11,23 +11,23 @@ function sleep(ms: number) {
 }
 
 interface BrightDataProfile {
-  profile_info?: {
-    id?: string;
-    name?: string;
-    location?: { city?: string; state?: string; country?: string };
-    about?: string;
-  };
-  professional?: {
-    current_position?: { title?: string; company?: string; company_link?: string };
-  };
-  url?: string;
-  email?: string;
+  id?: string;
   name?: string;
   first_name?: string;
   last_name?: string;
   position?: string;
+  city?: string;
+  location?: string;
+  country_code?: string;
+  url?: string;
+  avatar?: string;
+  about?: string;
+  followers?: number;
+  connections?: number;
+  current_company?: { name?: string; link?: string; title?: string };
+  experience?: unknown[];
+  education?: unknown[];
   industry?: string;
-  current_company?: { name?: string };
 }
 
 function transformResults(
@@ -36,29 +36,24 @@ function transformResults(
 ) {
   if (!Array.isArray(data)) return [];
   return data.map((p) => {
-    const city = p.profile_info?.location?.city ?? "";
-    const country = p.profile_info?.location?.country ?? "";
     const loc =
       filters.location ||
-      [city, country].filter(Boolean).join(", ") ||
+      p.city ||
+      p.location ||
       "Unknown";
 
     return {
-      id: p.profile_info?.id ?? crypto.randomUUID(),
+      id: p.id ?? crypto.randomUUID(),
       name:
-        (p.profile_info?.name ??
-        `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim()) ||
+        p.name ||
+        `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
         "Unknown",
-      title:
-        p.professional?.current_position?.title ?? p.position ?? "Professional",
-      company:
-        p.professional?.current_position?.company ??
-        p.current_company?.name ??
-        "Unknown Company",
+      title: p.position ?? p.current_company?.title ?? "Professional",
+      company: p.current_company?.name ?? "Unknown Company",
       location: loc,
       industry: filters.industry || p.industry || "General",
       linkedinUrl: p.url ?? "#",
-      email: p.email ?? undefined,
+      email: undefined,
       phone: undefined,
       companySize: undefined,
       experience: filters.experience || undefined,

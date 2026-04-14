@@ -127,6 +127,9 @@ function SearchPage() {
     });
     if (res.ok) {
       setSavedIds((prev) => new Set(prev).add(lead.id));
+    } else {
+      const data = await res.json().catch(() => null);
+      alert(data?.error ?? "Failed to save lead");
     }
   }
   const activeFilterCount = [
