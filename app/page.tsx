@@ -23,28 +23,28 @@ export default function LandingPage() {
       <Navbar />
 
       {/* Hero */}
-      <section className="max-w-5xl mx-auto px-6 pt-24 pb-20 text-center">
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 pt-14 pb-12 sm:pt-20 sm:pb-16 md:pt-24 md:pb-20 text-center">
         <span className="inline-block text-xs font-semibold tracking-wider text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full mb-6 uppercase">
           Powered by LinkedIn Data
         </span>
-        <h1 className="text-5xl font-bold text-gray-900 leading-tight mb-6">
-          Find your next customer <br />
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 leading-tight mb-6">
+          Find your next customer{" "}
           <span className="text-blue-600">in any niche & location</span>
         </h1>
-        <p className="text-xl text-gray-500 mb-10 max-w-2xl mx-auto">
+        <p className="text-base sm:text-lg md:text-xl text-gray-500 mb-8 sm:mb-10 max-w-2xl mx-auto">
           LeadHunter helps you discover qualified buyers, decision-makers, and professionals.
           Search by industry, location, and role. Save leads. Close deals.
         </p>
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
           <Link
             href="/auth/register"
-            className="bg-blue-600 text-white px-8 py-3.5 rounded-xl font-semibold text-base hover:bg-blue-700 transition-colors shadow-sm"
+            className="w-full sm:w-auto bg-blue-600 text-white px-8 py-3.5 rounded-xl font-semibold text-base hover:bg-blue-700 transition-colors shadow-sm text-center"
           >
             Start for Free
           </Link>
           <Link
             href="/search"
-            className="border border-gray-200 text-gray-700 px-8 py-3.5 rounded-xl font-semibold text-base hover:bg-gray-50 transition-colors"
+            className="w-full sm:w-auto border border-gray-200 text-gray-700 px-8 py-3.5 rounded-xl font-semibold text-base hover:bg-gray-50 transition-colors text-center"
           >
             See a Demo Search
           </Link>
@@ -53,8 +53,8 @@ export default function LandingPage() {
       </section>
 
       {/* Stats */}
-      <section className="border-y border-gray-100 bg-gray-50 py-12">
-        <div className="max-w-4xl mx-auto px-6 grid grid-cols-3 gap-8 text-center">
+      <section className="border-y border-gray-100 bg-gray-50 py-10 sm:py-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 text-center">
           {stats.map((stat) => (
             <div key={stat.label}>
               <p className="text-4xl font-bold text-gray-900 mb-1">{stat.value}</p>
@@ -65,7 +65,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section id="features" className="max-w-5xl mx-auto px-6 py-24">
+      <section id="features" className="max-w-5xl mx-auto px-4 sm:px-6 py-14 sm:py-20 md:py-24">
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
             Everything you need to generate leads
@@ -89,12 +89,12 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing Preview */}
-      <section className="bg-gray-50 border-t border-gray-100 py-24 px-6">
-        <div className="max-w-5xl mx-auto text-center mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Simple, transparent pricing</h2>
-          <p className="text-gray-500 text-lg">Start free. Upgrade when you need more searches.</p>
+      <section className="bg-gray-50 border-t border-gray-100 py-14 sm:py-20 md:py-24 px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto text-center mb-10 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">Simple, transparent pricing</h2>
+          <p className="text-gray-500 text-base sm:text-lg">Start free. Upgrade when you need more searches.</p>
         </div>
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-5">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
           {plans.map((plan) => (
             <div
               key={plan.id}
@@ -152,8 +152,8 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="max-w-3xl mx-auto px-6 py-24 text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Ready to find your next customer?</h2>
+      <section className="max-w-3xl mx-auto px-4 sm:px-6 py-14 sm:py-20 md:py-24 text-center">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">Ready to find your next customer?</h2>
         <p className="text-gray-500 mb-8">
           Join thousands of sales teams using LeadHunter to grow their pipeline.
         </p>
@@ -166,8 +166,8 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-gray-100 py-8 px-6">
-        <div className="max-w-5xl mx-auto flex items-center justify-between text-sm text-gray-400">
+      <footer className="border-t border-gray-100 py-8 px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-400">
           <span>2026 LeadHunter. All rights reserved.</span>
           <div className="flex gap-6">
             <Link href="/pricing" className="hover:text-gray-600">Pricing</Link>

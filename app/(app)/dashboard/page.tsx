@@ -52,7 +52,7 @@ const statCards = [
 
 export default function DashboardPage() {
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">
@@ -98,15 +98,15 @@ export default function DashboardPage() {
             <Zap size={16} className="text-yellow-500" />
           </div>
           <p className="text-sm text-gray-500 mb-4">Find leads by role, company, or industry instantly.</p>
-          <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
             <input
               type="text"
               placeholder="e.g. SaaS Founders in New York"
-              className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              className="flex-1 min-w-0 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
             />
             <Link
               href="/search"
-              className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2"
+              className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 shrink-0"
             >
               Search <ArrowRight size={14} />
             </Link>

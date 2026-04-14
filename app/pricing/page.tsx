@@ -6,13 +6,13 @@ export default function PricingPage() {
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
-      <div className="max-w-5xl mx-auto px-6 py-20">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
         <div className="text-center mb-16">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Choose your plan</h1>
           <p className="text-xl text-gray-500">Start free. Scale when you&apos;re ready.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-16">
           {plans.map((plan) => (
             <div
               key={plan.id}

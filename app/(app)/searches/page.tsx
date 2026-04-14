@@ -17,7 +17,7 @@ export default function RecentSearchesPage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Recent Searches</h1>
         <p className="text-gray-500 mt-1">Quickly re-run or review your past searches.</p>
@@ -38,7 +38,7 @@ export default function RecentSearchesPage() {
               key={s.id}
               className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-sm transition-shadow group"
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -77,7 +77,7 @@ export default function RecentSearchesPage() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                   <div className="text-right mr-2">
                     <div className="text-sm font-semibold text-gray-900">{s.resultCount}</div>
                     <div className="text-xs text-gray-400">results</div>

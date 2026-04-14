@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { mockUser } from "@/lib/mock-data";
+import { Menu, X } from "lucide-react";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard", icon: "⊞" },
@@ -13,16 +15,23 @@ const navLinks = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const usagePercent = Math.round((mockUser.searchesUsed / mockUser.searchesLimit) * 100);
 
-  return (
-    <aside className="w-60 min-h-screen bg-white border-r border-gray-200 flex flex-col">
+  const sidebarContent = (
+    <>
       {/* Logo */}
-      <div className="px-6 py-5 border-b border-gray-100">
-        <Link href="/" className="flex items-center gap-2">
+      <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
           <span className="text-blue-600 font-bold text-xl">LeadHunter</span>
         </Link>
+        <button
+          className="md:hidden p-1 rounded-lg hover:bg-gray-100 transition-colors"
+          onClick={() => setMobileOpen(false)}
+        >
+          <X size={20} className="text-gray-500" />
+        </button>
       </div>
 
       {/* Nav */}
@@ -33,6 +42,7 @@ export default function Sidebar() {
             <Link
               key={link.href}
               href={link.href}
+              onClick={() => setMobileOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 active
                   ? "bg-blue-50 text-blue-700"
@@ -85,6 +95,43 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile top bar */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 h-14 flex items-center px-4 gap-3">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          aria-label="Open menu"
+        >
+          <Menu size={20} className="text-gray-600" />
+        </button>
+        <Link href="/" className="text-blue-600 font-bold text-lg">
+          LeadHunter
+        </Link>
+      </header>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/40"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar panel */}
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-gray-200 flex flex-col transition-transform duration-200
+          md:static md:w-60 md:translate-x-0 md:flex
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
+        `}
+      >
+        {sidebarContent}
+      </aside>
+    </>
   );
 }
