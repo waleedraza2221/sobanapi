@@ -20,6 +20,8 @@ interface BrightDataProfile {
   avatar?: string;
   timestamp?: string;
   input?: Record<string, string>;
+  email?: string;
+  phone?: string;
   // Error entries
   error?: string;
   error_code?: string;
@@ -45,8 +47,8 @@ function transformResults(
       industry: filters.industry || "General",
       linkedinUrl: p.url ?? "#",
       avatar: p.avatar ?? undefined,
-      email: undefined,
-      phone: undefined,
+      email: p.email ?? undefined,
+      phone: p.phone ?? undefined,
       companySize: undefined,
       experience: filters.experience || undefined,
     };
@@ -158,25 +160,30 @@ export async function POST(req: NextRequest) {
   try {
     const words = query.trim().split(/\s+/);
 
-    // This dataset requires first_name + last_name
-    // Accept "FirstName LastName" or "FirstName MiddleName LastName"
-    if (words.length < 2) {
-      return NextResponse.json(
-        { error: "Please enter a first and last name (e.g. John Smith)" },
-        { status: 400 }
-      );
+    let searchUrl: string;
+    let bdInput: Record<string, string>;
+
+    // Decide search mode:
+    // - 2 words that look like a person's name → name-based people search
+    // - Otherwise → keyword-based "all" search
+    if (words.length === 2 && words.every((w: string) => /^[A-Za-z'-]+$/.test(w))) {
+      const firstName = words[0];
+      const lastName = words[1];
+      searchUrl = `https://www.linkedin.com/search/results/people/?firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}`;
+      bdInput = { url: searchUrl, first_name: firstName, last_name: lastName };
+    } else if (words.length >= 3 && words.every((w: string) => /^[A-Za-z'-]+$/.test(w))) {
+      // "FirstName Middle LastName" style
+      const firstName = words[0];
+      const lastName = words.slice(1).join(" ");
+      searchUrl = `https://www.linkedin.com/search/results/people/?firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}`;
+      bdInput = { url: searchUrl, first_name: firstName, last_name: lastName };
+    } else {
+      // Keyword-based search
+      searchUrl = `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(query.trim())}`;
+      bdInput = { url: searchUrl };
     }
 
-    const firstName = words[0];
-    const lastName = words.slice(1).join(" ");
-
-    const searchUrl = `https://www.linkedin.com/search/results/people/?firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}`;
-
-    const rawData = await triggerBrightData({
-      url: searchUrl,
-      first_name: firstName,
-      last_name: lastName,
-    });
+    const rawData = await triggerBrightData(bdInput);
 
     leads = transformResults(rawData, { industry, experience, location: location || country });
 

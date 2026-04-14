@@ -16,17 +16,24 @@ export async function POST(req: NextRequest) {
     }
 
     const words = query.trim().split(/\s+/);
-    if (words.length < 2) {
-      return NextResponse.json(
-        { error: "Enter a first and last name (e.g. John Smith)" },
-        { status: 400 }
-      );
-    }
 
-    const firstName = words[0];
-    const lastName = words.slice(1).join(" ");
-    const searchUrl = `https://www.linkedin.com/search/results/people/?firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}`;
-    const input = { url: searchUrl, first_name: firstName, last_name: lastName };
+    let searchUrl: string;
+    let input: Record<string, string>;
+
+    if (words.length === 2 && words.every((w: string) => /^[A-Za-z'-]+$/.test(w))) {
+      const firstName = words[0];
+      const lastName = words[1];
+      searchUrl = `https://www.linkedin.com/search/results/people/?firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}`;
+      input = { url: searchUrl, first_name: firstName, last_name: lastName };
+    } else if (words.length >= 3 && words.every((w: string) => /^[A-Za-z'-]+$/.test(w))) {
+      const firstName = words[0];
+      const lastName = words.slice(1).join(" ");
+      searchUrl = `https://www.linkedin.com/search/results/people/?firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}`;
+      input = { url: searchUrl, first_name: firstName, last_name: lastName };
+    } else {
+      searchUrl = `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(query.trim())}`;
+      input = { url: searchUrl };
+    }
 
     // 1. Trigger
     const triggerRes = await fetch(
