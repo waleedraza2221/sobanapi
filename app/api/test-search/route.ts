@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
 
     const firstName = words[0];
     const lastName = words.slice(1).join(" ");
-    const input = { first_name: firstName, last_name: lastName };
+    const searchUrl = `https://www.linkedin.com/search/results/people/?firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}`;
+    const input = { url: searchUrl, first_name: firstName, last_name: lastName };
 
     // 1. Trigger
     const triggerRes = await fetch(
