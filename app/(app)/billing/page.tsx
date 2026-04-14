@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { PLAN_CONFIG } from "@/lib/plans";
@@ -53,7 +53,7 @@ function formatExpiry(dateStr: string | null) {
   return new Date(dateStr).toLocaleDateString("en-PK", { year: "numeric", month: "long", day: "numeric" });
 }
 
-export default function BillingPage() {
+function BillingPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const supabase = createClient();
@@ -134,7 +134,7 @@ export default function BillingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           plan: selectedPlan,
-          amount: plan.price,
+          amount: selectedPlanConfig!.price,
           method,
           screenshot_url: fileName, // store path, not public URL
           transaction_ref: transactionRef.trim(),
@@ -474,5 +474,13 @@ export default function BillingPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function BillingPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-gray-400">Loading billing…</div>}>
+      <BillingPageInner />
+    </Suspense>
   );
 }

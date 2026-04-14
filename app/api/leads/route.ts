@@ -68,21 +68,20 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Update saved_leads count
-  await supabase.rpc("increment_saved_leads", { uid: user.id }).catch(() => {
-    supabase
+  const { error: rpcErr } = await supabase.rpc("increment_saved_leads", { uid: user.id });
+  if (rpcErr) {
+    const { data: p } = await supabase
       .from("profiles")
       .select("saved_leads")
       .eq("id", user.id)
-      .single()
-      .then(({ data: p }) => {
-        if (p) {
-          supabase
-            .from("profiles")
-            .update({ saved_leads: (p.saved_leads ?? 0) + 1 })
-            .eq("id", user.id);
-        }
-      });
-  });
+      .single();
+    if (p) {
+      await supabase
+        .from("profiles")
+        .update({ saved_leads: (p.saved_leads ?? 0) + 1 })
+        .eq("id", user.id);
+    }
+  }
 
   return NextResponse.json({ lead: data }, { status: 201 });
 }
