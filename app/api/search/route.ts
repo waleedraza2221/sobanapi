@@ -11,27 +11,15 @@ function sleep(ms: number) {
 }
 
 interface BrightDataProfile {
-  profile_info?: {
-    id?: string;
-    name?: string;
-    location?: { city?: string; state?: string; country?: string };
-    about?: string;
-    metrics?: { followers?: number; connections?: number };
-  };
-  professional?: {
-    current_position?: {
-      title?: string;
-      company?: string;
-      company_link?: string;
-    };
-    education?: {
-      school?: string;
-      years?: string;
-    };
-  };
   url?: string;
-  similar_professionals?: unknown[];
-  recommendations?: unknown[];
+  name?: string;
+  subtitle?: string;
+  location?: string;
+  experience?: string;
+  education?: string;
+  avatar?: string;
+  timestamp?: string;
+  input?: Record<string, string>;
   // Error entries
   error?: string;
   error_code?: string;
@@ -45,23 +33,18 @@ function transformResults(
   // Filter out error entries from BrightData
   const valid = data.filter((p) => !p.error_code);
   return valid.map((p) => {
-    const city = p.profile_info?.location?.city ?? "";
-    const country = p.profile_info?.location?.country ?? "";
-    const loc =
-      filters.location ||
-      [city, country].filter(Boolean).join(", ") ||
-      "Unknown";
+    // experience field contains company info like "Virgin Group" or "Company A, +3 more"
+    const company = p.experience?.split(",")[0]?.trim() ?? "Unknown Company";
 
     return {
-      id: p.profile_info?.id ?? crypto.randomUUID(),
-      name: p.profile_info?.name ?? "Unknown",
-      title:
-        p.professional?.current_position?.title ?? "Professional",
-      company:
-        p.professional?.current_position?.company ?? "Unknown Company",
-      location: loc,
+      id: crypto.randomUUID(),
+      name: p.name ?? "Unknown",
+      title: p.subtitle ?? "Professional",
+      company,
+      location: filters.location || p.location || "Unknown",
       industry: filters.industry || "General",
       linkedinUrl: p.url ?? "#",
+      avatar: p.avatar ?? undefined,
       email: undefined,
       phone: undefined,
       companySize: undefined,
