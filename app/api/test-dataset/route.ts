@@ -10,8 +10,20 @@ export async function GET(req: NextRequest) {
     const res = await fetch(`https://api.brightdata.com/datasets/v3/dataset/${datasetId}`, {
       headers: { Authorization: `Bearer ${BRIGHTDATA_API_KEY}` },
     });
-    const data = await res.json();
-    return NextResponse.json(data);
+    const text = await res.text();
+    
+    // Try parsing as JSON, otherwise return raw text
+    try {
+      const data = JSON.parse(text);
+      return NextResponse.json(data);
+    } catch {
+      return NextResponse.json({ 
+        status: res.status, 
+        statusText: res.statusText,
+        contentType: res.headers.get("content-type"),
+        body: text.slice(0, 2000) 
+      });
+    }
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Unknown error" },
