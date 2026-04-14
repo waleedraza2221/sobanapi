@@ -234,11 +234,11 @@ export default function DashboardPage() {
             <h2 className="font-semibold text-gray-900">Quick Search</h2>
             <Zap size={16} className="text-yellow-500" />
           </div>
-          <p className="text-sm text-gray-500 mb-4">Find leads by role, company, or industry instantly.</p>
+          <p className="text-sm text-gray-500 mb-4">Enter a <span className="font-medium text-gray-700">full name</span> (e.g. Elon Musk) or <span className="font-medium text-gray-700">keywords</span> (e.g. CEO fintech London).</p>
           <div className="flex gap-3 flex-wrap">
             <input
               type="text"
-              placeholder="e.g. SaaS Founders in New York"
+              placeholder="Full name (John Doe) or keywords (CEO fintech London)…"
               className="flex-1 min-w-0 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -255,7 +255,7 @@ export default function DashboardPage() {
             </Link>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            {["CEO in SaaS", "HR Managers", "Marketing Directors", "Startup Founders"].map((q) => (
+            {["software engineer Google", "HR Manager", "Marketing Director", "Startup Founder"].map((q) => (
               <Link
                 key={q}
                 href={`/search?q=${encodeURIComponent(q)}`}
