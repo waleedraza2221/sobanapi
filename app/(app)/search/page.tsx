@@ -4,18 +4,26 @@ import { useSearchParams } from "next/navigation";
 import LeadCard from "@/components/LeadCard";
 import { Search, SlidersHorizontal, X, Loader2 } from "lucide-react";
 
-const industries = ["All Industries", "SaaS", "FinTech", "E-Commerce", "Healthcare", "EdTech", "Marketing", "Real Estate"];
+const industries = ["All Industries", "SaaS", "FinTech", "E-Commerce", "Healthcare", "EdTech", "Marketing", "Real Estate", "Consulting", "Legal", "Manufacturing", "Logistics", "Media", "Non-Profit", "Government"];
 const experienceLevels = ["Any", "Entry Level", "Mid Level", "Senior", "Director", "VP", "C-Suite"];
 const companySizes = ["Any", "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+"];
+const countries = ["Any", "United States", "United Kingdom", "Canada", "Australia", "Germany", "France", "India", "Pakistan", "UAE", "Singapore", "Netherlands", "Sweden", "Brazil", "South Africa"];
+const connectionDegrees = ["Any", "1st", "2nd", "3rd+"];
 
 type Filters = {
   query: string;
   location: string;
+  country: string;
   industry: string;
   experience: string;
   companySize: string;
+  jobTitle: string;
+  company: string;
+  connectionDegree: string;
   remote: boolean;
   hasEmail: boolean;
+  hasPhone: boolean;
+  openToWork: boolean;
 };
 
 interface Lead {
@@ -45,11 +53,17 @@ function SearchPage() {
   const [filters, setFilters] = useState<Filters>({
     query: params.get("q") ?? "",
     location: params.get("location") ?? "",
+    country: "Any",
     industry: "All Industries",
     experience: "Any",
     companySize: "Any",
+    jobTitle: "",
+    company: "",
+    connectionDegree: "Any",
     remote: false,
     hasEmail: false,
+    hasPhone: false,
+    openToWork: false,
   });
   const [showFilters, setShowFilters] = useState(false);
   const [results, setResults] = useState<Lead[]>([]);
@@ -76,10 +90,16 @@ function SearchPage() {
         body: JSON.stringify({
           query: filters.query,
           location: filters.location,
+          country: filters.country === "Any" ? "" : filters.country,
           industry: filters.industry === "All Industries" ? "" : filters.industry,
           experience: filters.experience === "Any" ? "" : filters.experience,
           companySize: filters.companySize === "Any" ? "" : filters.companySize,
+          jobTitle: filters.jobTitle,
+          company: filters.company,
+          connectionDegree: filters.connectionDegree === "Any" ? "" : filters.connectionDegree,
           hasEmail: filters.hasEmail,
+          hasPhone: filters.hasPhone,
+          openToWork: filters.openToWork,
         }),
       });
 
@@ -113,8 +133,14 @@ function SearchPage() {
     filters.industry !== "All Industries",
     filters.experience !== "Any",
     filters.companySize !== "Any",
+    filters.country !== "Any",
+    filters.jobTitle !== "",
+    filters.company !== "",
+    filters.connectionDegree !== "Any",
     filters.remote,
     filters.hasEmail,
+    filters.hasPhone,
+    filters.openToWork,
   ].filter(Boolean).length;
 
   return (
@@ -178,74 +204,125 @@ function SearchPage() {
 
         {/* Advanced Filters */}
         {showFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Industry</label>
-              <select
-                value={filters.industry}
-                onChange={(e) => set("industry", e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {industries.map((i) => <option key={i}>{i}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Experience</label>
-              <select
-                value={filters.experience}
-                onChange={(e) => set("experience", e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {experienceLevels.map((i) => <option key={i}>{i}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Company Size</label>
-              <select
-                value={filters.companySize}
-                onChange={(e) => set("companySize", e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {companySizes.map((i) => <option key={i}>{i}</option>)}
-              </select>
-            </div>
-            <div className="flex flex-col gap-3 pt-5">
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+            {/* Row 1 */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Job Title</label>
                 <input
-                  type="checkbox"
-                  checked={filters.remote}
-                  onChange={(e) => set("remote", e.target.checked)}
-                  className="rounded accent-blue-600"
+                  type="text"
+                  value={filters.jobTitle}
+                  onChange={(e) => set("jobTitle", e.target.value)}
+                  placeholder="e.g. CTO, Engineer…"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                Remote only
-              </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Company</label>
                 <input
-                  type="checkbox"
-                  checked={filters.hasEmail}
-                  onChange={(e) => set("hasEmail", e.target.checked)}
-                  className="rounded accent-blue-600"
+                  type="text"
+                  value={filters.company}
+                  onChange={(e) => set("company", e.target.value)}
+                  placeholder="e.g. Google, Stripe…"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                Has email
-              </label>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Country</label>
+                <select
+                  value={filters.country}
+                  onChange={(e) => set("country", e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {countries.map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Industry</label>
+                <select
+                  value={filters.industry}
+                  onChange={(e) => set("industry", e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {industries.map((i) => <option key={i}>{i}</option>)}
+                </select>
+              </div>
+            </div>
+            {/* Row 2 */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Experience</label>
+                <select
+                  value={filters.experience}
+                  onChange={(e) => set("experience", e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {experienceLevels.map((i) => <option key={i}>{i}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Company Size</label>
+                <select
+                  value={filters.companySize}
+                  onChange={(e) => set("companySize", e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {companySizes.map((i) => <option key={i}>{i}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Connection</label>
+                <select
+                  value={filters.connectionDegree}
+                  onChange={(e) => set("connectionDegree", e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {connectionDegrees.map((i) => <option key={i}>{i}</option>)}
+                </select>
+              </div>
+              {/* Checkboxes */}
+              <div className="flex flex-col gap-2 pt-5">
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input type="checkbox" checked={filters.remote} onChange={(e) => set("remote", e.target.checked)} className="rounded accent-blue-600" />
+                  Remote only
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input type="checkbox" checked={filters.hasEmail} onChange={(e) => set("hasEmail", e.target.checked)} className="rounded accent-blue-600" />
+                  Has email
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input type="checkbox" checked={filters.hasPhone} onChange={(e) => set("hasPhone", e.target.checked)} className="rounded accent-blue-600" />
+                  Has phone
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input type="checkbox" checked={filters.openToWork} onChange={(e) => set("openToWork", e.target.checked)} className="rounded accent-blue-600" />
+                  Open to work
+                </label>
+              </div>
             </div>
             {activeFilterCount > 0 && (
-              <div className="flex items-end">
+              <div className="flex items-center pt-1">
                 <button
                   type="button"
                   onClick={() =>
                     setFilters((f) => ({
                       ...f,
+                      country: "Any",
                       industry: "All Industries",
                       experience: "Any",
                       companySize: "Any",
+                      jobTitle: "",
+                      company: "",
+                      connectionDegree: "Any",
                       remote: false,
                       hasEmail: false,
+                      hasPhone: false,
+                      openToWork: false,
                     }))
                   }
                   className="flex items-center gap-1.5 text-sm text-red-500 hover:text-red-700"
                 >
-                  <X size={13} /> Clear filters
+                  <X size={13} /> Clear all filters
                 </button>
               </div>
             )}

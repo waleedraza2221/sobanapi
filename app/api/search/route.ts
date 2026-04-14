@@ -148,10 +148,16 @@ export async function POST(req: NextRequest) {
   const {
     query = "",
     location = "",
+    country = "",
     industry = "",
     experience = "",
     companySize = "",
+    jobTitle = "",
+    company = "",
+    connectionDegree = "",
     hasEmail = false,
+    hasPhone = false,
+    openToWork = false,
   } = body;
 
   if (!query.trim()) {
@@ -182,21 +188,26 @@ export async function POST(req: NextRequest) {
         "name"
       );
     } else {
-      // Keyword-based discovery: keyword + optional location
+      // Keyword-based discovery — pass all supported filter fields
       const input: Record<string, string> = { keyword: query };
       if (location) input.location = location;
+      if (country) input.country = country;
+      if (jobTitle) input.title = jobTitle;
+      if (company) input.company = company;
       rawData = await callBrightData([input], "keyword");
     }
 
-    leads = transformResults(rawData, { industry, experience, location });
+    leads = transformResults(rawData, { industry, experience, location: location || country });
 
-    // Apply client-side filters
-    if (industry && industry !== "All Industries") {
+    // Post-process client-side filters
+    if (industry) {
       leads = leads.filter((l) =>
         l.industry.toLowerCase().includes(industry.toLowerCase())
       );
     }
     if (hasEmail) leads = leads.filter((l) => l.email);
+    if (hasPhone) leads = leads.filter((l) => l.phone);
+    if (openToWork) leads = leads.filter((l) => (l as Record<string, unknown>).openToWork);
   } catch (err) {
     searchError = err instanceof Error ? err.message : "Search failed";
     console.error("[BrightData]", searchError);
@@ -206,12 +217,12 @@ export async function POST(req: NextRequest) {
   await supabase.from("searches").insert({
     user_id: user.id,
     query,
-    location,
+    location: location || country,
     industry,
     experience,
     company_size: companySize,
     result_count: leads.length,
-    filters: { query, location, industry, experience, companySize, hasEmail },
+    filters: { query, location, country, industry, experience, companySize, jobTitle, company, connectionDegree, hasEmail, hasPhone, openToWork },
   });
 
   // Increment search counter
