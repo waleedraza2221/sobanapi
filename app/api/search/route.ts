@@ -35,7 +35,9 @@ function transformResults(
   filters: { industry: string; experience: string; location: string }
 ) {
   if (!Array.isArray(data)) return [];
-  return data.map((p) => {
+  // Filter out error entries from BrightData
+  const valid = data.filter((p) => !('error' in p && 'error_code' in p));
+  return valid.map((p) => {
     const loc =
       filters.location ||
       p.city ||

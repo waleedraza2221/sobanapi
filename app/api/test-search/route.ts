@@ -15,7 +15,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "query is required" }, { status: 400 });
     }
 
-    const searchUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(query)}`;
+    const words = query.trim().split(/\s+/);
+    const roleKeywords = [
+      "ceo","cto","cmo","coo","vp","director","manager","founder",
+      "engineer","developer","designer","analyst","consultant","head",
+      "lead","senior","junior","executive",
+    ];
+    const looksLikeName =
+      words.length === 2 &&
+      !words.some((w: string) => roleKeywords.includes(w.toLowerCase()));
+
+    let input: Record<string, string>;
+    if (looksLikeName) {
+      const params = new URLSearchParams({ firstName: words[0], lastName: words[1] });
+      input = {
+        url: `https://www.linkedin.com/search/results/people/?${params}`,
+        first_name: words[0],
+        last_name: words[1],
+      };
+    } else {
+      const params = new URLSearchParams({ keywords: query });
+      input = { url: `https://www.linkedin.com/search/results/people/?${params}` };
+    }
 
     // 1. Trigger
     const triggerRes = await fetch(
@@ -26,7 +47,7 @@ export async function POST(req: NextRequest) {
           Authorization: `Bearer ${BRIGHTDATA_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify([{ url: searchUrl }]),
+        body: JSON.stringify([input]),
       }
     );
 
@@ -62,8 +83,12 @@ export async function POST(req: NextRequest) {
         const raw = await dataRes.json();
         const arr = Array.isArray(raw) ? raw : [];
 
+        // Separate errors from real results
+        const errors = arr.filter((p: Record<string, unknown>) => 'error_code' in p);
+        const valid = arr.filter((p: Record<string, unknown>) => !('error_code' in p));
+
         // Transform using same logic as search route
-        const transformed = arr.map((p: Record<string, unknown>) => ({
+        const transformed = valid.map((p: Record<string, unknown>) => ({
           id: p.id ?? "no-id",
           name: p.name ?? (`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || "Unknown"),
           title: p.position ?? (p.current_company as Record<string, unknown>)?.title ?? "Professional",
@@ -76,8 +101,12 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
           snapshot_id,
-          resultCount: arr.length,
-          raw: arr.slice(0, 5), // First 5 raw results
+          input,
+          totalItems: arr.length,
+          errorCount: errors.length,
+          validCount: valid.length,
+          errors: errors.slice(0, 3),
+          raw: valid.slice(0, 5), // First 5 valid raw results
           transformed: transformed.slice(0, 5),
         });
       }
