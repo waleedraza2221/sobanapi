@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-const BRIGHTDATA_API_KEY = process.env.BRIGHTDATA_API_KEY!;
-const BRIGHTDATA_DATASET_ID = "gd_l1viktl72bvl7bjuj0";
-const BRIGHTDATA_BASE = "https://api.brightdata.com/datasets/v3";
-
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
+import { bdclient } from "@brightdata/sdk";
+import { ScrapeJob } from "@brightdata/sdk/scrapers";
 
 interface BrightDataProfile {
   profile_info?: {
@@ -65,55 +59,65 @@ function transformResults(
   });
 }
 
-async function callBrightData(
-  input: Record<string, string>[],
-  discoverBy: string
-) {
-  const triggerRes = await fetch(
-    `${BRIGHTDATA_BASE}/trigger?dataset_id=${BRIGHTDATA_DATASET_ID}&type=discover_new&discover_by=${discoverBy}&include_errors=true`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${BRIGHTDATA_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(input),
-    }
-  );
+function makeBdClient() {
+  return new bdclient({ apiKey: process.env.BRIGHTDATA_API_KEY! });
+}
 
-  if (!triggerRes.ok) {
-    const err = await triggerRes.text();
-    throw new Error(`BrightData trigger failed ${triggerRes.status}: ${err}`);
+// Discover LinkedIn profiles by first + last name
+async function discoverByName(
+  firstName: string,
+  lastName: string
+): Promise<BrightDataProfile[]> {
+  const client = makeBdClient();
+  try {
+    const job = (await client.scrape.linkedin.discoverProfiles(
+      [{ first_name: firstName, last_name: lastName }],
+      { format: "json" }
+    )) as unknown as ScrapeJob;
+    const result = await job.toResult({ pollInterval: 3500, pollTimeout: 60000 });
+    if (!result.success) throw new Error(result.error ?? "BrightData discover failed");
+    return (Array.isArray(result.data) ? result.data : []) as BrightDataProfile[];
+  } finally {
+    await client.close();
   }
+}
 
-  const { snapshot_id } = await triggerRes.json();
-  if (!snapshot_id) throw new Error("No snapshot_id returned");
+// Keyword search: Google → LinkedIn URLs → collect profiles
+async function discoverByKeyword(
+  query: string,
+  jobTitle: string,
+  company: string,
+  location: string,
+  country: string
+): Promise<BrightDataProfile[]> {
+  const client = makeBdClient();
+  try {
+    const parts = [query, jobTitle, company, location].filter(Boolean);
+    const searchQuery = parts.join(" ") + " site:linkedin.com/in";
 
-  // Poll for up to 60 seconds
-  const deadline = Date.now() + 60000;
-  while (Date.now() < deadline) {
-    await sleep(3500);
+    const searchResults = await client.search.google(searchQuery, {
+      format: "json",
+      ...(country ? { country: country.toLowerCase().slice(0, 2) } : {}),
+    });
 
-    const progressRes = await fetch(
-      `${BRIGHTDATA_BASE}/progress/${snapshot_id}`,
-      { headers: { Authorization: `Bearer ${BRIGHTDATA_API_KEY}` } }
-    );
-    const progress = await progressRes.json();
+    const urls = (Array.isArray(searchResults) ? searchResults : [])
+      .map((r: Record<string, unknown>) => r.link as string)
+      .filter((link) => typeof link === "string" && link.includes("linkedin.com/in/"))
+      .slice(0, 10);
 
-    if (progress.status === "ready") {
-      const dataRes = await fetch(
-        `${BRIGHTDATA_BASE}/snapshot/${snapshot_id}?format=json`,
-        { headers: { Authorization: `Bearer ${BRIGHTDATA_API_KEY}` } }
-      );
-      return await dataRes.json();
-    }
+    if (urls.length === 0) return [];
 
-    if (progress.status === "failed" || progress.status === "error") {
-      throw new Error(`BrightData collection failed: ${progress.status}`);
-    }
+    const result = await client.scrape.linkedin.profiles(urls, {
+      pollInterval: 3500,
+      pollTimeout: 60000,
+      format: "json",
+    });
+
+    if (!result.success) throw new Error(result.error ?? "BrightData collect failed");
+    return (Array.isArray(result.data) ? result.data : []) as BrightDataProfile[];
+  } finally {
+    await client.close();
   }
-
-  throw new Error("BrightData request timed out after 60 seconds");
 }
 
 export async function POST(req: NextRequest) {
@@ -183,18 +187,9 @@ export async function POST(req: NextRequest) {
     let rawData: BrightDataProfile[];
 
     if (looksLikeName) {
-      rawData = await callBrightData(
-        [{ first_name: words[0], last_name: words[1] }],
-        "name"
-      );
+      rawData = await discoverByName(words[0], words[1]);
     } else {
-      // Keyword-based discovery — pass all supported filter fields
-      const input: Record<string, string> = { keyword: query };
-      if (location) input.location = location;
-      if (country) input.country = country;
-      if (jobTitle) input.title = jobTitle;
-      if (company) input.company = company;
-      rawData = await callBrightData([input], "keyword");
+      rawData = await discoverByKeyword(query, jobTitle, company, location, country);
     }
 
     leads = transformResults(rawData, { industry, experience, location: location || country });
