@@ -2,7 +2,7 @@
 import { useState } from "react";
 
 export default function TestPage() {
-  const [query, setQuery] = useState("software developer");
+  const [query, setQuery] = useState("Richard Branson");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);

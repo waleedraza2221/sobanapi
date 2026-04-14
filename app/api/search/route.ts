@@ -3,31 +3,38 @@ import { createClient } from "@/lib/supabase/server";
 
 const BRIGHTDATA_API_KEY = process.env.BRIGHTDATA_API_KEY!;
 const BRIGHTDATA_BASE = "https://api.brightdata.com/datasets/v3";
-// linkedin_people_search dataset — plain trigger, no discover_by needed
-const PEOPLE_SEARCH_DATASET_ID = "gd_m8d03he47z8nwb5xc";
+// Profile Discovery dataset — input: first_name + last_name
+const PROFILE_DISCOVERY_DATASET_ID = "gd_m8d03he47z8nwb5xc";
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
 interface BrightDataProfile {
-  id?: string;
-  name?: string;
-  first_name?: string;
-  last_name?: string;
-  position?: string;
-  city?: string;
-  location?: string;
-  country_code?: string;
+  profile_info?: {
+    id?: string;
+    name?: string;
+    location?: { city?: string; state?: string; country?: string };
+    about?: string;
+    metrics?: { followers?: number; connections?: number };
+  };
+  professional?: {
+    current_position?: {
+      title?: string;
+      company?: string;
+      company_link?: string;
+    };
+    education?: {
+      school?: string;
+      years?: string;
+    };
+  };
   url?: string;
-  avatar?: string;
-  about?: string;
-  followers?: number;
-  connections?: number;
-  current_company?: { name?: string; link?: string; title?: string };
-  experience?: unknown[];
-  education?: unknown[];
-  industry?: string;
+  similar_professionals?: unknown[];
+  recommendations?: unknown[];
+  // Error entries
+  error?: string;
+  error_code?: string;
 }
 
 function transformResults(
@@ -36,24 +43,24 @@ function transformResults(
 ) {
   if (!Array.isArray(data)) return [];
   // Filter out error entries from BrightData
-  const valid = data.filter((p) => !('error' in p && 'error_code' in p));
+  const valid = data.filter((p) => !p.error_code);
   return valid.map((p) => {
+    const city = p.profile_info?.location?.city ?? "";
+    const country = p.profile_info?.location?.country ?? "";
     const loc =
       filters.location ||
-      p.city ||
-      p.location ||
+      [city, country].filter(Boolean).join(", ") ||
       "Unknown";
 
     return {
-      id: p.id ?? crypto.randomUUID(),
-      name:
-        p.name ||
-        `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
-        "Unknown",
-      title: p.position ?? p.current_company?.title ?? "Professional",
-      company: p.current_company?.name ?? "Unknown Company",
+      id: p.profile_info?.id ?? crypto.randomUUID(),
+      name: p.profile_info?.name ?? "Unknown",
+      title:
+        p.professional?.current_position?.title ?? "Professional",
+      company:
+        p.professional?.current_position?.company ?? "Unknown Company",
       location: loc,
-      industry: filters.industry || p.industry || "General",
+      industry: filters.industry || "General",
       linkedinUrl: p.url ?? "#",
       email: undefined,
       phone: undefined,
@@ -67,7 +74,7 @@ async function triggerBrightData(
   input: Record<string, string>
 ): Promise<BrightDataProfile[]> {
   const triggerRes = await fetch(
-    `${BRIGHTDATA_BASE}/trigger?dataset_id=${PEOPLE_SEARCH_DATASET_ID}&include_errors=true`,
+    `${BRIGHTDATA_BASE}/trigger?dataset_id=${PROFILE_DISCOVERY_DATASET_ID}&include_errors=true`,
     {
       method: "POST",
       headers: {
@@ -112,32 +119,6 @@ async function triggerBrightData(
   }
 
   throw new Error("BrightData request timed out after 90 seconds");
-}
-
-// Build a LinkedIn people search URL from query params
-function buildLinkedInSearchUrl(opts: {
-  query?: string;
-  firstName?: string;
-  lastName?: string;
-  jobTitle?: string;
-  company?: string;
-  location?: string;
-}): string {
-  const qs = new URLSearchParams();
-  if (opts.firstName && opts.lastName) {
-    // Name-based search
-    qs.set("firstName", opts.firstName);
-    qs.set("lastName", opts.lastName);
-  } else {
-    // Keyword-based: combine query + company + location into keywords
-    const keywords = [opts.query, opts.company, opts.location]
-      .filter(Boolean)
-      .join(" ");
-    if (keywords) qs.set("keywords", keywords);
-    // Job title uses LinkedIn's dedicated titleFreeText param
-    if (opts.jobTitle) qs.set("titleFreeText", opts.jobTitle);
-  }
-  return `https://www.linkedin.com/search/results/people/?${qs.toString()}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -194,25 +175,22 @@ export async function POST(req: NextRequest) {
   try {
     const words = query.trim().split(/\s+/);
 
-    // Decide strategy: 2 words with no job-title keywords → name search; else keyword
-    const roleKeywords = [
-      "ceo", "cto", "cmo", "coo", "vp", "director", "manager", "founder",
-      "engineer", "developer", "designer", "analyst", "consultant", "head",
-      "lead", "senior", "junior", "executive",
-    ];
-    const looksLikeName =
-      words.length === 2 &&
-      !words.some((w: string) => roleKeywords.includes(w.toLowerCase()));
-
-    let rawData: BrightDataProfile[];
-
-    if (looksLikeName) {
-      const searchUrl = buildLinkedInSearchUrl({ firstName: words[0], lastName: words[1] });
-      rawData = await triggerBrightData({ url: searchUrl, first_name: words[0], last_name: words[1] });
-    } else {
-      const searchUrl = buildLinkedInSearchUrl({ query, jobTitle, company, location });
-      rawData = await triggerBrightData({ url: searchUrl });
+    // This dataset requires first_name + last_name
+    // Accept "FirstName LastName" or "FirstName MiddleName LastName"
+    if (words.length < 2) {
+      return NextResponse.json(
+        { error: "Please enter a first and last name (e.g. John Smith)" },
+        { status: 400 }
+      );
     }
+
+    const firstName = words[0];
+    const lastName = words.slice(1).join(" ");
+
+    const rawData = await triggerBrightData({
+      first_name: firstName,
+      last_name: lastName,
+    });
 
     leads = transformResults(rawData, { industry, experience, location: location || country });
 

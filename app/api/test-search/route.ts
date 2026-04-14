@@ -16,27 +16,16 @@ export async function POST(req: NextRequest) {
     }
 
     const words = query.trim().split(/\s+/);
-    const roleKeywords = [
-      "ceo","cto","cmo","coo","vp","director","manager","founder",
-      "engineer","developer","designer","analyst","consultant","head",
-      "lead","senior","junior","executive",
-    ];
-    const looksLikeName =
-      words.length === 2 &&
-      !words.some((w: string) => roleKeywords.includes(w.toLowerCase()));
-
-    let input: Record<string, string>;
-    if (looksLikeName) {
-      const params = new URLSearchParams({ firstName: words[0], lastName: words[1] });
-      input = {
-        url: `https://www.linkedin.com/search/results/people/?${params}`,
-        first_name: words[0],
-        last_name: words[1],
-      };
-    } else {
-      const params = new URLSearchParams({ keywords: query });
-      input = { url: `https://www.linkedin.com/search/results/people/?${params}` };
+    if (words.length < 2) {
+      return NextResponse.json(
+        { error: "Enter a first and last name (e.g. John Smith)" },
+        { status: 400 }
+      );
     }
+
+    const firstName = words[0];
+    const lastName = words.slice(1).join(" ");
+    const input = { first_name: firstName, last_name: lastName };
 
     // 1. Trigger
     const triggerRes = await fetch(
@@ -87,17 +76,23 @@ export async function POST(req: NextRequest) {
         const errors = arr.filter((p: Record<string, unknown>) => 'error_code' in p);
         const valid = arr.filter((p: Record<string, unknown>) => !('error_code' in p));
 
-        // Transform using same logic as search route
-        const transformed = valid.map((p: Record<string, unknown>) => ({
-          id: p.id ?? "no-id",
-          name: p.name ?? (`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || "Unknown"),
-          title: p.position ?? (p.current_company as Record<string, unknown>)?.title ?? "Professional",
-          company: (p.current_company as Record<string, unknown>)?.name ?? "Unknown Company",
-          location: p.city ?? p.location ?? "Unknown",
-          linkedinUrl: p.url ?? "#",
-          // Show ALL keys so we can see the full schema
-          _allKeys: Object.keys(p),
-        }));
+        // Transform using nested structure matching BrightData Profile Discovery response
+        const transformed = valid.map((p: Record<string, unknown>) => {
+          const profileInfo = p.profile_info as Record<string, unknown> | undefined;
+          const professional = p.professional as Record<string, unknown> | undefined;
+          const currentPos = professional?.current_position as Record<string, unknown> | undefined;
+          const location = profileInfo?.location as Record<string, unknown> | undefined;
+
+          return {
+            id: profileInfo?.id ?? "no-id",
+            name: profileInfo?.name ?? "Unknown",
+            title: currentPos?.title ?? "Professional",
+            company: currentPos?.company ?? "Unknown Company",
+            location: [location?.city, location?.country].filter(Boolean).join(", ") || "Unknown",
+            linkedinUrl: p.url ?? "#",
+            _allKeys: Object.keys(p),
+          };
+        });
 
         return NextResponse.json({
           snapshot_id,
